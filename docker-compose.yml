@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  # STP Framework Service
+  stp-framework:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: stp-framework
+    ports:
+      - "${STP_PORT:-3000}:3000"
+    environment:
+      - STP_MODE=${STP_MODE:-api}
+      - STP_PORT=${STP_PORT:-3000}
+      - STP_HOST=${STP_HOST:-0.0.0.0}
+      - STP_ENABLE_LOGGING=${STP_ENABLE_LOGGING:-true}
+      - STP_STRICT_VALIDATION=${STP_STRICT_VALIDATION:-false}
+      - STP_TIMEOUT=${STP_TIMEOUT:-30000}
+      # Redis connection (if enabled)
+      - REDIS_HOST=${REDIS_HOST:-stp-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      # PostgreSQL connection (if enabled)
+      - POSTGRES_HOST=${POSTGRES_HOST:-stp-postgres}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - POSTGRES_DB=${POSTGRES_DB:-stp}
+      - POSTGRES_USER=${POSTGRES_USER:-stp_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-stp_password}
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      - stp-redis
+      - stp-postgres
+    networks:
+      - stp-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "const {STP} = require('./dist/index.js'); const stp = new STP({enableLogging: false}); console.log('STP Health Check:', stp.getStatus().framework); process.exit(0);"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Redis for caching and session storage
+  stp-redis:
+    image: redis:7-alpine
+    container_name: stp-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - stp-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL for persistent storage
+  stp-postgres:
+    image: postgres:15-alpine
+    container_name: stp-postgres
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-stp}
+      - POSTGRES_USER=${POSTGRES_USER:-stp_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-stp_password}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - stp-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-stp_user}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Optional: Admin interface (if we create one)
+  stp-admin:
+    image: adminer:latest
+    container_name: stp-admin
+    ports:
+      - "${ADMIN_PORT:-8080}:8080"
+    environment:
+      - ADMINER_DEFAULT_SERVER=stp-postgres
+    networks:
+      - stp-network
+    restart: unless-stopped
+    depends_on:
+      - stp-postgres
+
+networks:
+  stp-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+    driver: local
+  postgres-data:
+    driver: local

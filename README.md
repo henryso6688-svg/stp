@@ -147,12 +147,57 @@ stp/
 - ✅ 构建和开发脚本
 - ✅ GitHub部署配置
 
+## Deployment
+
+STP framework supports multiple deployment options for single-machine setups.
+
+### Quick Deployment with Docker Compose
+
+```bash
+# 1. Clone repository
+git clone https://github.com/henryso6688-svg/stp.git
+cd stp
+
+# 2. Configure environment
+cp .env.example .env
+# Edit .env file as needed
+
+# 3. Start all services
+docker-compose up -d
+
+# 4. Access the API
+curl http://localhost:3000/health
+```
+
+### Deployment Architecture
+
+```
+┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐
+│ STP API  │  │PostgreSQL│  │  Redis   │  │ Adminer │
+│ :3000    │  │  :5432   │  │  :6379   │  │  :8080  │
+└──────────┘  └──────────┘  └──────────┘  └─────────┘
+```
+
+### API Endpoints
+
+- `GET /health` - Health check
+- `GET /api/status` - STP framework status
+- `POST /api/process` - Process request through all ministries
+- `GET /api/ministry/{name}` - Get ministry information
+- `GET /api/audit/logs` - Get audit logs
+- `GET /api/infrastructure/status` - Get infrastructure status
+
+### Detailed Deployment Guide
+
+For complete deployment instructions, see [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md).
+
 ## Next Steps
 
 1. Run the example: `npm run example`
-2. Add more use cases and demonstrations
-3. Extend with real-world integrations
-4. Add CI/CD pipeline
+2. Test deployment: `docker-compose up -d`
+3. Add more use cases and demonstrations
+4. Extend with real-world integrations
+5. Add CI/CD pipeline
 
 ## License
 
